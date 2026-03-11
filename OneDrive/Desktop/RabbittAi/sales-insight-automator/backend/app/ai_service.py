@@ -32,7 +32,7 @@ def generate_sales_summary(metrics: dict[str, Any]) -> str:
     )
 
     try:
-        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
         response = client.models.generate_content(
             model=model_name,
             contents=prompt,
