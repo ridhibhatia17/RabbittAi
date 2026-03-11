@@ -41,11 +41,16 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS — allow the configured frontend origin (localhost & 127.0.0.1)
 # ---------------------------------------------------------------------------
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-allowed_origins = [frontend_url]
-if "localhost" in frontend_url:
-    allowed_origins.append(frontend_url.replace("localhost", "127.0.0.1"))
-elif "127.0.0.1" in frontend_url:
-    allowed_origins.append(frontend_url.replace("127.0.0.1", "localhost"))
+allowed_origins = [o.strip() for o in frontend_url.split(",") if o.strip()]
+
+# For each origin, also allow localhost ↔ 127.0.0.1 swaps
+extra = []
+for origin in allowed_origins:
+    if "localhost" in origin:
+        extra.append(origin.replace("localhost", "127.0.0.1"))
+    elif "127.0.0.1" in origin:
+        extra.append(origin.replace("127.0.0.1", "localhost"))
+allowed_origins.extend(extra)
 
 app.add_middleware(
     CORSMiddleware,
