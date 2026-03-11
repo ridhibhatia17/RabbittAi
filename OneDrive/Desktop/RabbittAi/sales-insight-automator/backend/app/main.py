@@ -14,7 +14,7 @@ from app.routes import router
 
 # Load .env from the backend directory (parent of app/)
 _env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(_env_path)
+load_dotenv(_env_path, override=True)
 
 # ---------------------------------------------------------------------------
 # Rate limiter

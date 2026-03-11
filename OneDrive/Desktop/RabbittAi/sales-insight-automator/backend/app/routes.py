@@ -1,3 +1,6 @@
+import asyncio
+from functools import partial
+
 from fastapi import APIRouter, File, Form, UploadFile
 
 from app.ai_service import generate_sales_summary
@@ -31,13 +34,18 @@ async def analyze_sales(
     contents = await read_file_with_size_check(file)
 
     # 3. Parse file and extract sales metrics
-    metrics = parse_sales_file(contents, file.filename or "upload.csv")
+    loop = asyncio.get_event_loop()
+    metrics = await loop.run_in_executor(
+        None, parse_sales_file, contents, file.filename or "upload.csv"
+    )
 
-    # 4. Generate AI executive summary via Gemini
-    summary = generate_sales_summary(metrics)
+    # 4. Generate AI executive summary via Gemini (blocking I/O → thread pool)
+    summary = await loop.run_in_executor(None, generate_sales_summary, metrics)
 
     # 5. Email the summary with revenue-by-region chart to the recipient
-    send_email(recipient_email, summary, metrics.get("revenue_by_region"))
+    await loop.run_in_executor(
+        None, partial(send_email, recipient_email, summary, metrics.get("revenue_by_region"))
+    )
 
     return AnalyzeSalesResponse(
         status="success",

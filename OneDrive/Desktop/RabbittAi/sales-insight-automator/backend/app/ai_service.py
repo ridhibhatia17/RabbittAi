@@ -2,21 +2,21 @@ import os
 import time
 from typing import Any
 
-from google import genai
+from groq import Groq
 from fastapi import HTTPException
 
 _MAX_RETRIES = 3
 
 
-def _get_client() -> genai.Client:
-    api_key = os.getenv("GEMINI_API_KEY")
+def _get_client() -> Groq:
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured.")
-    return genai.Client(api_key=api_key)
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY is not configured.")
+    return Groq(api_key=api_key)
 
 
 def generate_sales_summary(metrics: dict[str, Any]) -> str:
-    """Send extracted sales metrics to Google Gemini and return an executive summary."""
+    """Send extracted sales metrics to Groq and return an executive summary."""
     client = _get_client()
 
     prompt = (
@@ -34,27 +34,27 @@ def generate_sales_summary(metrics: dict[str, Any]) -> str:
         f"Cancelled vs Completed Ratio: {metrics['cancelled_ratio']:.2%}\n"
     )
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     last_exc: Exception | None = None
 
     for attempt in range(_MAX_RETRIES):
         try:
-            response = client.models.generate_content(
+            response = client.chat.completions.create(
                 model=model_name,
-                contents=prompt,
+                messages=[{"role": "user", "content": prompt}],
             )
-            return response.text
+            return response.choices[0].message.content
         except Exception as exc:
             last_exc = exc
             # Retry on 429 rate-limit errors
-            if "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc):
+            if "429" in str(exc) or "rate_limit" in str(exc).lower():
                 time.sleep(2 ** attempt * 10)  # 10s, 20s, 40s
                 continue
             raise HTTPException(
-                status_code=502, detail=f"Gemini API error: {exc}"
+                status_code=502, detail=f"Groq API error: {exc}"
             ) from exc
 
     raise HTTPException(
         status_code=429,
-        detail=f"Gemini API rate limit exceeded after {_MAX_RETRIES} retries: {last_exc}",
+        detail=f"Groq API rate limit exceeded after {_MAX_RETRIES} retries: {last_exc}",
     ) from last_exc
