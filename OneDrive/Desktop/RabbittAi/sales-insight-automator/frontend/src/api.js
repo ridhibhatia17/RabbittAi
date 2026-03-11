@@ -1,4 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  (window.location.hostname === "localhost"
+    ? "http://localhost:8000"
+    : "https://sales-insight-backend-k3gq.onrender.com");
 
 /**
  * Upload a sales file and recipient email to the backend.

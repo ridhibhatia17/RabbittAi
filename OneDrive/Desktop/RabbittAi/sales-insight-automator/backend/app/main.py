@@ -38,10 +38,19 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ---------------------------------------------------------------------------
-# CORS — allow the configured frontend origin (localhost & 127.0.0.1)
+# CORS — allow the configured frontend origin + production Vercel URL
 # ---------------------------------------------------------------------------
+_PRODUCTION_ORIGINS = [
+    "https://rabbitt-ai-topaz.vercel.app",
+]
+
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 allowed_origins = [o.strip() for o in frontend_url.split(",") if o.strip()]
+
+# Always include production origins
+for prod in _PRODUCTION_ORIGINS:
+    if prod not in allowed_origins:
+        allowed_origins.append(prod)
 
 # For each origin, also allow localhost ↔ 127.0.0.1 swaps
 extra = []
