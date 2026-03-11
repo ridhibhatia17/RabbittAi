@@ -1,8 +1,11 @@
 import os
+import time
 from typing import Any
 
 from google import genai
 from fastapi import HTTPException
+
+_MAX_RETRIES = 3
 
 
 def _get_client() -> genai.Client:
@@ -31,14 +34,27 @@ def generate_sales_summary(metrics: dict[str, Any]) -> str:
         f"Cancelled vs Completed Ratio: {metrics['cancelled_ratio']:.2%}\n"
     )
 
-    try:
-        model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-        )
-        return response.text
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"Gemini API error: {exc}"
-        ) from exc
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    last_exc: Exception | None = None
+
+    for attempt in range(_MAX_RETRIES):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            return response.text
+        except Exception as exc:
+            last_exc = exc
+            # Retry on 429 rate-limit errors
+            if "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc):
+                time.sleep(2 ** attempt * 10)  # 10s, 20s, 40s
+                continue
+            raise HTTPException(
+                status_code=502, detail=f"Gemini API error: {exc}"
+            ) from exc
+
+    raise HTTPException(
+        status_code=429,
+        detail=f"Gemini API rate limit exceeded after {_MAX_RETRIES} retries: {last_exc}",
+    ) from last_exc
