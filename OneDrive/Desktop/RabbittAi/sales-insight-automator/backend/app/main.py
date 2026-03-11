@@ -16,6 +16,9 @@ from app.routes import router
 _env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(_env_path, override=True)
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 # ---------------------------------------------------------------------------
 # Rate limiter
 # ---------------------------------------------------------------------------
@@ -73,6 +76,14 @@ app.add_middleware(
 # Routes
 # ---------------------------------------------------------------------------
 app.include_router(router)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    import traceback
+    logging.error(f"Unhandled exception: {exc}\n{traceback.format_exc()}")
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
 
 @app.get("/health", tags=["Health"])
