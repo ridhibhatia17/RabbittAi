@@ -158,13 +158,19 @@ def send_email(
         msg.attach(img_part)
 
     try:
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(smtp_email, smtp_password)
-            server.sendmail(smtp_email, [recipient], msg.as_string())
-    except smtplib.SMTPException as exc:
+        smtp_port_int = int(smtp_port) if isinstance(smtp_port, str) else smtp_port
+        if smtp_port_int == 465:
+            with smtplib.SMTP_SSL(smtp_server, smtp_port_int, timeout=30) as server:
+                server.login(smtp_email, smtp_password)
+                server.sendmail(smtp_email, [recipient], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_server, smtp_port_int, timeout=30) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_email, smtp_password)
+                server.sendmail(smtp_email, [recipient], msg.as_string())
+    except Exception as exc:
         raise HTTPException(
             status_code=502, detail=f"Failed to send email: {exc}"
         ) from exc
